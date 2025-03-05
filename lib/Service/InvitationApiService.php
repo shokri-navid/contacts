@@ -11,10 +11,11 @@ namespace OCA\Contacts\Service;
 
 use OCA\Contacts\AppInfo\Application;
 use OCA\Contacts\Service\Social\CompositeSocialProvider;
-
 use OCA\DAV\CardDAV\CardDavBackend;
+use OCA\DAV\CardDAV\Card;
+use OCP\IUserManager;
+use OCP\IUserSession;
 use OCA\DAV\CardDAV\ContactsManager;
-
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -82,6 +83,8 @@ class InvitationApiService {
 	}
 
 	public function acceptInvitation(InvitationAcceptRequestDto $request, int $ownerId, \Datetime $now) : array{
+		$this->createContact($request, $ownerId);
+
 		$query = $this->dbConnection->getQueryBuilder();
 		
 		$qb->update($this->invitation_table_name)
@@ -89,7 +92,27 @@ class InvitationApiService {
 				->set('acceptedAt', $qb->createNamedParameter($now, IQueryBuilder::PARAM_STR))
 		->where(
 			$qb->expr()->eq('token', $qb->createNamedParameter($token, IQueryBuilder::PARAM_STR))
-		);
+		);		
+	}
+
+	public function createContact(InvitationAcceptRequestDto $request, int $ownerId){
+		$cardDavBackend = \OC::$server->get(CardDavBackend::class);
+
+		$addressBooks = $cardDavBackend->getAddressBooksForUser("principals/users/$ownerId");
+
+		if (empty($addressBooks)) {
+    		throw new Exception("No address book found for user: $ownerId");
+		}
+
+		$nameParts = explode(" ", $request->name, 2);
+		$addressBookId = $addressBooks[0]['id'];
+
+		$vcard = "BEGIN:VCARD\nVERSION:3.0\nFN:".$request->name."\nN:".$nameParts[0].";".$nameParts[1].";;;\nEMAIL:".$request->email."\nTEL;TYPE=work:+1234567890\nEND:VCARD";
+
+		$contactUri = "contact-" . uniqid() . ".vcf";
+
+
+		$cardDavBackend->createCard($addressBookId, $contactUri, $vcard);
 	}
 
 	public function sendInvitationEMail($toUserEmail, $toDisplayName, $token) {
