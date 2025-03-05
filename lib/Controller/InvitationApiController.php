@@ -58,14 +58,13 @@ class InvitationApiController extends ApiController {
 	 *
 	 * @returns {JSONResponse} an empty JSONResponse with respective http status code
 	 */
-	public function accept() {
-		$user = $this->userSession->getUser();
-		if (is_null($user)) {
-			return new JSONResponse([], Http::STATUS_PRECONDITION_FAILED);
+	public function accept(InvaitationAcceptDto $request) {
+		$invitation = $this->invitationService->findInvitation($request->token);
+		if (empty($invitation)){
+			return new JSONResponse([], Http::STATUS_NOT_FOUND); 
 		}
-		$userId = $user->getUid();
-		$this->config->setUserValue($userId, $this->appName, $key, $allow);
-		return new JSONResponse([], Http::STATUS_OK);
+
+		$this->invitationService->acceptInvitation($request, $invitation->userId, $this->timeFactory->now());
 	}
 
 

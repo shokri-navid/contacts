@@ -12,5 +12,4 @@ class Invitation {
     public bool $accepted;
     public string $token;
     public int $userId;
-
 }

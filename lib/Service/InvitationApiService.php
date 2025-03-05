@@ -48,7 +48,7 @@ class InvitationApiService {
 
 	public function createInvitation(Invitation $invitation) : array{
 		$query = $this->dbConnection->getQueryBuilder();
-		$tkoken = ''; //todo: creat guid
+		$token = ''; //todo: creat guid
 		$query->insert($this->invitation_table_name)
 		->values([
 			'user_id' => $invitation->userId,
@@ -63,9 +63,33 @@ class InvitationApiService {
 
 
 	}
-
-	public function acceptInvitation() : array{
+	
+	public function findInvitation(string $token){
+		$query = $this->dbConnection->getQueryBuilder();
 		
+		$qb->select('*')
+		->from($this->invitation_table_name)
+		->where(
+			$qb->expr()->eq('token', $qb->createNamedParameter($token, IQueryBuilder::PARAM_STR))
+		);
+
+	 $result = $qb->executeQuery();
+	 $row = $result->fetchAssociative();
+	 $result->closeCursor();
+
+	 return $row;
+		
+	}
+
+	public function acceptInvitation(InvitationAcceptRequestDto $request, int $ownerId, \Datetime $now) : array{
+		$query = $this->dbConnection->getQueryBuilder();
+		
+		$qb->update($this->invitation_table_name)
+				->set('accepted', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL))
+				->set('acceptedAt', $qb->createNamedParameter($now, IQueryBuilder::PARAM_STR))
+		->where(
+			$qb->expr()->eq('token', $qb->createNamedParameter($token, IQueryBuilder::PARAM_STR))
+		);
 	}
 
 	public function sendInvitationEMail($toUserEmail, $toDisplayName, $token) {
